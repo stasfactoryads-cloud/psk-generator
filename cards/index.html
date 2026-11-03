@@ -1,4 +1,5 @@
 <!doctype html>
+<meta charset="utf-8">
 <title>Генератор карточек ПСК</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap">
 <style>
@@ -301,7 +302,7 @@ function onLot(id){
   feats.push(...(l.tags || []));
   $('inp-ft').value = feats.join('\n');
   $('inp-term').value = 'Передача ключей' + (l.cy ? '\n' + (l.cq ? ROMAN[l.cq-1] + ' кв. ' : '') + l.cy + ' г.' : '');
-  planSrc = '';
+  planSrc = l.plan || '';  // план из фида по умолчанию, свою загрузку можно заменить
   $('plan-link').innerHTML = l.plan ? `<a href="${l.plan}" target="_blank" rel="noopener">Открыть план из фида ↗</a>` : '';
   $('up-plan').classList.remove('ok'); $('up-plan').textContent = '📎 Загрузить свою планировку';
   render();
@@ -368,6 +369,25 @@ $('sel-lot').addEventListener('change', e => onLot(e.target.value));
   $({'tg-sz':'g-sz','tg-43':'g-43','tg-34':'g-34'}[id]).classList.toggle('on', $(id).checked);
 }));
 
+// ── Растеризация SVG-планировки для экспорта ──
+async function svgToPng(url){
+  const text = await (await fetch(url)).text();
+  // размеры берём из viewBox: у многих SVG фида нет width/height, и браузер считает их 300x150
+  const vb = (text.match(/viewBox="([^"]+)"/) || [])[1];
+  const [, , vw, vh] = vb ? vb.trim().split(/[\s,]+/).map(Number) : [];
+  const w = vw || 1000, h = vh || 1000;
+  const k = 1600 / Math.max(w, h);
+  const objUrl = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
+  try {
+    const img = new Image();
+    img.src = objUrl; await img.decode();
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/png');
+  } finally { URL.revokeObjectURL(objUrl); }
+}
+
 // ── Экспорт ──
 $('btn-dl').addEventListener('click', async function(){
   const btn = this; btn.disabled = true; btn.textContent = 'Генерация...';
@@ -376,7 +396,18 @@ $('btn-dl').addEventListener('click', async function(){
   guides.forEach(g => g.classList.remove('on'));
   try {
     if (!dl && window.claude && window.claude.use) { try { dl = await claude.use('downloads'); } catch(e) {} }
-    const canvas = await html2canvas($('card'), { scale:1, useCORS:true, allowTaint:true, backgroundColor:'#FFFFFF', width:1080, height:1080, logging:false });
+    // Снимаем масштаб предпросмотра: html2canvas некорректно рисует элементы внутри transform
+    const cw = $('cw'); const prevT = cw.style.transform; cw.style.transform = 'none';
+    // html2canvas плохо рисует SVG, поэтому на время экспорта подменяем планировку растровым PNG
+    const planImg = $('c-plan').querySelector('img'); const prevPlan = planImg ? planImg.src : '';
+    let canvas;
+    try {
+      if (planImg && /\.svg(\?|$)/i.test(prevPlan)) {
+        planImg.src = await svgToPng(prevPlan);
+        await planImg.decode();
+      }
+      canvas = await html2canvas($('card'), { scale:1, useCORS:true, allowTaint:true, backgroundColor:'#FFFFFF', width:1080, height:1080, logging:false });
+    } finally { cw.style.transform = prevT; if (planImg) planImg.src = prevPlan; }
     const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
     if (!blob) { toast('Ошибка генерации'); return; }
     const n = ($('inp-name').value || 'card').trim().replace(/\s+/g,'_');
