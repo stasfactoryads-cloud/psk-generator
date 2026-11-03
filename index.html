@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Генератор планировок ПСК</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1d2330;
+    --muted: #6b7280;
+    --line: #e2e5ea;
+    --accent: #2563eb;
+    --accent-soft: #e8efff;
+    --ok: #15803d;
+    --warn: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1218;
+      --card: #171c25;
+      --text: #e6e9ef;
+      --muted: #8b93a3;
+      --line: #262d39;
+      --accent: #5b8cff;
+      --accent-soft: #1d2a47;
+      --ok: #4ade80;
+      --warn: #fbbf24;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1218;
+    --card: #171c25;
+    --text: #e6e9ef;
+    --muted: #8b93a3;
+    --line: #262d39;
+    --accent: #5b8cff;
+    --accent-soft: #1d2a47;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 20px 16px 12px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; }
+
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  select, input {
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 9px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .status { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+  .status.error { color: var(--warn); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .15s;
+  }
+  .card:hover, .card:focus-visible { border-color: var(--accent); outline: none; }
+  .thumb {
+    background: #fff;
+    height: 170px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .thumb .none { color: var(--muted); font-size: 13px; }
+  .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .price { font-size: 17px; font-weight: 650; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .proj { font-size: 13px; }
+  .badge {
+    align-self: flex-start;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .badge.free { color: var(--ok); }
+
+  .more {
+    display: block;
+    margin: 18px auto 0;
+    font: inherit;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .more[hidden] { display: none; }
+
+  dialog {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+    color: var(--text);
+    width: min(960px, calc(100vw - 32px));
+    padding: 18px;
+  }
+  dialog::backdrop { background: rgba(0, 0, 0, .55); }
+  .dlg-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .dlg-head h2 { font-size: 18px; margin: 0 0 4px; }
+  .close {
+    font: inherit;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .dlg-plans {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .plan-box {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    height: min(60vh, 460px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+  }
+  .plan-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .plan-cap { font-size: 12px; color: var(--muted); margin-top: 4px; text-align: center; }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; font-size: 14px; }
+  .facts dt { color: var(--muted); font-size: 12px; }
+  .facts dd { margin: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Генератор планировок ПСК</h1>
+  <div class="sub">Данные загружаются из фида ГК ПСК. Лоты и планировки обновляются вместе с фидом.</div>
+</header>
+
+<main class="wrap">
+  <section class="filters" aria-label="Фильтры">
+    <label>Проект
+      <select id="f-project"><option value="">Все проекты</option></select>
+    </label>
+    <label>Комнаты
+      <select id="f-rooms">
+        <option value="">Любые</option>
+        <option value="0">Студия / апартаменты</option>
+        <option value="1">1 комн.</option>
+        <option value="2">2 комн.</option>
+        <option value="3">3 комн.</option>
+        <option value="4">4+ комн.</option>
+      </select>
+    </label>
+    <label>Статус
+      <select id="f-status">
+        <option value="free">Свободно</option>
+        <option value="all">Все</option>
+        <option value="booked">В брони</option>
+      </select>
+    </label>
+    <label>Цена от, ₽
+      <input id="f-min" type="number" min="0" step="100000" placeholder="0">
+    </label>
+    <label>Цена до, ₽
+      <input id="f-max" type="number" min="0" step="100000" placeholder="без лимита">
+    </label>
+    <label>Площадь от, м²
+      <input id="f-area" type="number" min="0" step="1" placeholder="0">
+    </label>
+    <label>Сортировка
+      <select id="f-sort">
+        <option value="price-asc">Цена ↑</option>
+        <option value="price-desc">Цена ↓</option>
+        <option value="area-asc">Площадь ↑</option>
+        <option value="area-desc">Площадь ↓</option>
+      </select>
+    </label>
+  </section>
+
+  <div class="status" id="status">Загрузка данных…</div>
+  <div class="grid" id="grid"></div>
+  <button class="more" id="more" hidden>Показать ещё</button>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <div class="dlg-head">
+    <div>
+      <h2 id="dlg-title"></h2>
+      <div class="meta" id="dlg-sub"></div>
+    </div>
+    <button class="close" id="dlg-close" aria-label="Закрыть">×</button>
+  </div>
+  <div class="dlg-plans" id="dlg-plans"></div>
+  <dl class="facts" id="dlg-facts"></dl>
+</dialog>
+
+<script>
+(() => {
+  // Публичный фид ГК ПСК (raw GitHub, CORS открыт)
+  const FLATS_URL = "https://raw.githubusercontent.com/stasfactoryads-cloud/psk-official-data/main/api/flats.json";
+  const PAGE_SIZE = 60;
+
+  const $ = (id) => document.getElementById(id);
+  const fmtRub = (n) => n == null ? "—" : Math.round(Number(n)).toLocaleString("ru-RU") + " ₽";
+  const fmtArea = (n) => n == null ? "—" : String(n).replace(".", ",") + " м²";
+  const roomsLabel = (r) => (!r ? "Студия" : `${r}-комн.`);
+  const isFree = (f) => f.status === "Свободно";
+
+  let flats = [];
+  let filtered = [];
+  let shown = 0;
+
+  function fillProjects() {
+    const map = new Map();
+    for (const f of flats) if (f.project_slug) map.set(f.project_slug, f.project_name || f.project_slug);
+    const sel = $("f-project");
+    [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru")).forEach(([slug, name]) => {
+      const o = document.createElement("option");
+      o.value = slug;
+      o.textContent = name;
+      sel.appendChild(o);
+    });
+  }
+
+  function applyFilters() {
+    const project = $("f-project").value;
+    const rooms = $("f-rooms").value;
+    const status = $("f-status").value;
+    const min = parseFloat($("f-min").value) || 0;
+    const max = parseFloat($("f-max").value) || Infinity;
+    const areaMin = parseFloat($("f-area").value) || 0;
+    const [key, dir] = $("f-sort").value.split("-");
+    const k = key === "price" ? "price" : "area";
+    const sign = dir === "asc" ? 1 : -1;
+
+    filtered = flats.filter((f) => {
+      if (project && f.project_slug !== project) return false;
+      if (rooms !== "") {
+        const r = Number(rooms);
+        if (r === 4 ? f.rooms < 4 : f.rooms !== r) return false;
+      }
+      if (status === "free" && !isFree(f)) return false;
+      if (status === "booked" && f.status !== "Бронь") return false;
+      if (f.price != null && (f.price < min || f.price > max)) return false;
+      if (f.area != null && f.area < areaMin) return false;
+      return true;
+    });
+    filtered.sort((a, b) => ((a[k] ?? Infinity) - (b[k] ?? Infinity)) * sign);
+
+    shown = 0;
+    $("grid").innerHTML = "";
+    renderMore();
+    $("status").classList.remove("error");
+    $("status").textContent = `Найдено лотов: ${filtered.length.toLocaleString("ru-RU")} из ${flats.length.toLocaleString("ru-RU")}`;
+  }
+
+  function cardHtml(f, i) {
+    const img = f.plan
+      ? `<img src="${f.plan}" alt="Планировка лота ${f.number}" loading="lazy">`
+      : `<span class="none">Планировка не загружена</span>`;
+    return `
+      <article class="card" tabindex="0" data-i="${i}" aria-label="Лот ${f.number}, ${roomsLabel(f.rooms)}">
+        <div class="thumb">${img}</div>
+        <div class="body">
+          <div class="price">${fmtRub(f.price)}</div>
+          <div class="meta">${roomsLabel(f.rooms)} · ${fmtArea(f.area)} · ${f.floor}/${f.max_floor} эт.</div>
+          <div class="proj">${f.project_name || ""}</div>
+          <span class="badge ${isFree(f) ? "free" : ""}">${f.status || "—"}</span>
+        </div>
+      </article>`;
+  }
+
+  function renderMore() {
+    const next = filtered.slice(shown, shown + PAGE_SIZE);
+    $("grid").insertAdjacentHTML("beforeend", next.map((f, j) => cardHtml(f, shown + j)).join(""));
+    shown += next.length;
+    $("more").hidden = shown >= filtered.length;
+  }
+
+  function openDialog(f) {
+    $("dlg-title").textContent = `Лот № ${f.number} · ${roomsLabel(f.rooms)}`;
+    $("dlg-sub").textContent = `${f.project_name || ""}${f.building ? ` · корпус ${f.building}` : ""}`;
+    const plans = [
+      f.plan && { src: f.plan, cap: "Планировка квартиры" },
+      f.floor_plan && { src: f.floor_plan, cap: "План этажа" },
+    ].filter(Boolean);
+    $("dlg-plans").innerHTML = plans.length
+      ? plans.map((p) => `<div><div class="plan-box"><img src="${p.src}" alt="${p.cap}"></div><div class="plan-cap">${p.cap}</div></div>`).join("")
+      : `<div class="meta">Планировка для этого лота не загружена.</div>`;
+    $("dlg-facts").innerHTML = [
+      ["Цена", fmtRub(f.price)],
+      ["Площадь", fmtArea(f.area)],
+      ["Этаж", `${f.floor} из ${f.max_floor}`],
+      ["Статус", f.status || "—"],
+      ["Отделка", f.finishing || "—"],
+      ["Ипотека от, ₽/мес", f.dvizh_min_mortgage ? fmtRub(f.dvizh_min_mortgage) : "—"],
+      ["Срок сдачи", f.completion_year ? `${f.completion_quarter ? "Q" + f.completion_quarter + " " : ""}${f.completion_year}` : "—"],
+    ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+    $("dlg").showModal();
+  }
+
+  $("grid").addEventListener("click", (e) => {
+    const card = e.target.closest(".card");
+    if (card) openDialog(filtered[Number(card.dataset.i)]);
+  });
+  $("grid").addEventListener("keydown", (e) => {
+    const card = e.target.closest(".card");
+    if (card && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      openDialog(filtered[Number(card.dataset.i)]);
+    }
+  });
+  $("dlg-close").addEventListener("click", () => $("dlg").close());
+  $("dlg").addEventListener("click", (e) => { if (e.target === $("dlg")) $("dlg").close(); });
+  $("more").addEventListener("click", renderMore);
+
+  ["f-project", "f-rooms", "f-status", "f-sort"].forEach((id) => $(id).addEventListener("change", applyFilters));
+  ["f-min", "f-max", "f-area"].forEach((id) => $(id).addEventListener("input", applyFilters));
+
+  async function load() {
+    try {
+      const res = await fetch(FLATS_URL, { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      flats = Array.isArray(data.flats) ? data.flats : [];
+      fillProjects();
+      applyFilters();
+      if (data.generated_at) {
+        const d = new Date(data.generated_at);
+        $("status").textContent += ` · фид от ${d.toLocaleDateString("ru-RU")}`;
+      }
+    } catch (err) {
+      $("status").classList.add("error");
+      $("status").textContent = "Не удалось загрузить фид (" + err.message + "). Обновите страницу позже.";
+    }
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
