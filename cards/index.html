@@ -233,7 +233,7 @@ const CFG = {
   'zhk-respect':              { short:'РЕСПЕКТ',              color:'#CC2229', ceiling:'' },
   'assambleya-klubnyj-kvartal':{ short:'Ассамблея',           color:'#1A4D6E', ceiling:'' },
   'industrial-avenir':        { short:'Industrial AVENIR',    color:'#232B35', ceiling:'' },
-  'ladozhsky':                { short:'Ladozhsky AVENIR',     color:'#232B35', ceiling:'', logoPlate:true },
+  'ladozhsky':                { short:'Ladozhsky AVENIR',     color:'#232B35', ceiling:'', keepLogo:true, logoWhite:true },
   'bakunina33':               { short:'BAKUNINA 33',          color:'#4A4A4A', ceiling:'' },
   'korona':                   { short:'Северная корона',      color:'#7A5C3A', ceiling:'' },
   'korona_apart':             { short:'Северная корона Apartments', color:'#7A5C3A', ceiling:'' },
@@ -445,7 +445,7 @@ function fit(){
 let logoUploaded = false;   // true, если логотип загружен вручную (тогда API-логотип не подменяем)
 let logoPlate = false;      // логотип на белой подложке (цветной логотип проекта)
 const logoCache = {};
-function trimLogo(src, rejectBroken = true){
+function trimLogo(src, rejectBroken = true, knockout = false){
   if (!src) return Promise.resolve('');
   if (logoCache[src]) return logoCache[src];
   logoCache[src] = (async () => {
@@ -472,6 +472,11 @@ function trimLogo(src, rejectBroken = true){
       const c = document.createElement('canvas'); c.width = cw; c.height = ch;
       const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, cw, ch);
       const px = ctx.getImageData(0, 0, cw, ch).data;
+      // knockout: белый фон делаем прозрачным, чтобы белая заливка логотипа не превращалась в белый квадрат
+      if (knockout) {
+        for (let i = 0; i < px.length; i += 4) if (px[i + 3] > 0 && (px[i] + px[i + 1] + px[i + 2]) / 3 >= 235) px[i + 3] = 0;
+        ctx.putImageData(new ImageData(px, cw, ch), 0, 0);
+      }
       // логотип на непрозрачном белом фоне: белое считаем фоном, иначе обрезка ничего не найдёт
       let opaque = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 240) opaque++;
       const isOpaque = opaque / (px.length / 4) > 0.9;
@@ -498,7 +503,7 @@ function trimLogo(src, rejectBroken = true){
   return logoCache[src];
 }
 const logosReady = Promise.all(Object.keys(LOGOS).map(async (k) => {
-  LOGOS[k] = CFG[k] && CFG[k].noLogo ? '' : await trimLogo(LOGOS[k], !(CFG[k] && (CFG[k].logoPlate || CFG[k].keepLogo)));
+  LOGOS[k] = CFG[k] && CFG[k].noLogo ? '' : await trimLogo(LOGOS[k], !(CFG[k] && (CFG[k].logoPlate || CFG[k].keepLogo)), !!(CFG[k] && CFG[k].logoWhite));
 }));
 logosReady.then(() => {
   if (!proj || logoUploaded) return;
