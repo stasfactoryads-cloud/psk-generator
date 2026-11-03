@@ -96,6 +96,7 @@ body{font-family:Inter,-apple-system,system-ui,sans-serif;background:var(--bg);c
 .brand img{display:block;width:200px;height:auto}
 .bot .l{font-size:18px;color:#999;font-weight:400}
 .bot .v{font-size:34px;font-weight:700;color:#333;line-height:1.1}
+.bot .v.addr{font-size:19px;font-weight:600;line-height:1.25;padding:0 16px}
 
 /* Guides */
 .g{position:absolute;z-index:10;pointer-events:none;display:none}
@@ -202,7 +203,7 @@ body{font-family:Inter,-apple-system,system-ui,sans-serif;background:var(--bg);c
         <div class="bot">
           <div><div class="l">Площадь</div><div class="v" id="c-ar"></div></div>
           <div><div class="l">Этаж</div><div class="v" id="c-fl"></div></div>
-          <div><div class="l">Высота потолков</div><div class="v" id="c-ch"></div></div>
+          <div><div class="l" id="c-ch-label">Высота потолков</div><div class="v" id="c-ch"></div></div>
           <div class="brand"><img id="c-psk-red" alt="ПСК"></div>
         </div>
         <div class="g g-sz" id="g-sz"></div>
@@ -227,19 +228,19 @@ const LOGOS = {"akvatoriya-premialnyj-dom":"data:image/png;base64,iVBORw0KGgoAAA
 // Настройки проектов: короткое название, цвет, высота потолков (в API по лотам нет)
 const CFG = {
   'optimist-zhiloj-kompleks': { short:'Оптимист',             color:'#8B6AAE', ceiling:'2,9–3,1 м' },
-  'galernaya-gavan':          { short:'Галерная гавань',      color:'#2B5B8A', ceiling:'' },
-  'akvatoriya-premialnyj-dom':{ short:'Акватория',            color:'#3498B4', ceiling:'' },
-  'sezony-vidovoj-kompleks':  { short:'Сезоны',               color:'#5B8C3E', ceiling:'', keepLogo:true },
-  'plus-pulkovskij':          { short:'ПЛЮС Пулковский',      color:'#2E86AB', ceiling:'' },
-  'zhk-respect':              { short:'РЕСПЕКТ',              color:'#CC2229', ceiling:'' },
-  'assambleya-klubnyj-kvartal':{ short:'Ассамблея',           color:'#1A4D6E', ceiling:'' },
-  'industrial-avenir':        { short:'Industrial AVENIR',    color:'#232B35', ceiling:'' },
-  'ladozhsky':                { short:'Ladozhsky AVENIR',     color:'#232B35', ceiling:'', keepLogo:true, logoWhite:true },
-  'bakunina33':               { short:'BAKUNINA 33',          color:'#4A4A4A', ceiling:'' },
-  'korona':                   { short:'Северная корона',      color:'#7A5C3A', ceiling:'' },
-  'korona_apart':             { short:'Северная корона Apartments', color:'#7A5C3A', ceiling:'' },
+  'galernaya-gavan':          { short:'Галерная гавань',      color:'#2B5B8A', ceiling:'', address:'Васильевский остров, ул. Шкиперский проток, 16–18' },
+  'akvatoriya-premialnyj-dom':{ short:'Акватория',            color:'#3498B4', ceiling:'', address:'Выборгская набережная, дом 61' },
+  'sezony-vidovoj-kompleks':  { short:'Сезоны',               color:'#5B8C3E', ceiling:'', keepLogo:true, address:'Суздальское шоссе, уч. 26' },
+  'plus-pulkovskij':          { short:'ПЛЮС Пулковский',      color:'#2E86AB', ceiling:'', address:'Пулковское шоссе, участок 24' },
+  'zhk-respect':              { short:'РЕСПЕКТ',              color:'#CC2229', ceiling:'', address:'Полюстровский проспект, 87' },
+  'assambleya-klubnyj-kvartal':{ short:'Ассамблея',           color:'#1A4D6E', ceiling:'', address:'Малый проспект Васильевского острова, д. 60' },
+  'industrial-avenir':        { short:'Industrial AVENIR',    color:'#232B35', ceiling:'', address:'пр. Стачек, 62, лит. А' },
+  'ladozhsky':                { short:'Ladozhsky AVENIR',     color:'#232B35', ceiling:'', keepLogo:true, logoWhite:true, address:'пр. Энергетиков, д. 8, корп. 2, стр. 1' },
+  'bakunina33':               { short:'BAKUNINA 33',          color:'#4A4A4A', ceiling:'', address:'проспект Бакунина, д. 33, лит. А' },
+  'korona':                   { short:'Северная корона',      color:'#7A5C3A', ceiling:'', address:'набережная реки Карповки, д. 31, лит. А' },
+  'korona_apart':             { short:'Северная корона Apartments', color:'#7A5C3A', ceiling:'', address:'набережная реки Карповки, д. 31' },
   // логотип в API битый (белый прямоугольник вместо знака), поэтому показываем название; логотип можно загрузить вручную
-  'friends':                  { short:'Friends',              color:'#3B7A6E', ceiling:'', noLogo:true },
+  'friends':                  { short:'Friends',              color:'#3B7A6E', ceiling:'', noLogo:true, address:'набережная реки Каменки, дом 13, корп. 1,3; дом 15, корп. 1,3' },
 };
 const PALETTE = ['#8B6AAE','#2B5B8A','#3498B4','#5B8C3E','#2E86AB','#CC2229','#1A4D6E','#2C4D6B'];
 
@@ -345,7 +346,11 @@ function render(){
 
   $('c-ar').innerHTML = $('inp-ar').value + ' м²';
   $('c-fl').textContent = $('inp-fl').value || '—';
-  $('c-ch').textContent = $('inp-ch').value || '—';
+  // у ЖК вместо высоты потолков показываем адрес; Оптимист оставляем с высотой
+  const addr = CFG[proj] && CFG[proj].address;
+  $('c-ch-label').textContent = addr ? 'Адрес' : 'Высота потолков';
+  $('c-ch').textContent = addr || $('inp-ch').value || '—';
+  $('c-ch').classList.toggle('addr', !!addr);
 
   $('c-plan').innerHTML = planSrc
     ? `<img src="${planSrc}" alt="Планировка" onerror="planFailed()">`
