@@ -86,6 +86,7 @@ body{font-family:Inter,-apple-system,system-ui,sans-serif;background:var(--bg);c
 .plan{position:absolute;left:425px;top:0;width:655px;height:920px;background:#EDEDEF;display:flex;align-items:center;justify-content:center;padding:90px;overflow:hidden}
 .plan img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 .plan .ph{color:#8a8a8f;font-size:15px;text-align:center;line-height:1.6;font-weight:500}
+.plan .retry{margin-top:12px;font:inherit;font-size:14px;padding:8px 16px;border:1px solid #bbb;border-radius:8px;background:#fff;color:#333;cursor:pointer}
 
 /* Нижняя полоса: площадь / этаж / высота */
 .bot{position:absolute;left:0;top:920px;width:1080px;height:160px;background:#fff;display:grid;grid-template-columns:1fr 1fr 1fr 280px;border-top:1px solid #e6e6e8}
@@ -347,7 +348,7 @@ function render(){
   $('c-ch').textContent = $('inp-ch').value || '—';
 
   $('c-plan').innerHTML = planSrc
-    ? `<img src="${planSrc}" alt="Планировка">`
+    ? `<img src="${planSrc}" alt="Планировка" onerror="planFailed()">`
     : `<div class="ph">План из фида<br>подставится при генерации</div>`;
 }
 
@@ -525,6 +526,14 @@ function recolorPng(src, color){
     };
     img.src = src;
   });
+}
+// планировка из хранилища могла не загрузиться: показываем кнопку повтора вместо битого значка
+function planFailed(){
+  $('c-plan').innerHTML = `<div class="ph">Планировка не загрузилась из хранилища.<br><button class="retry" onclick="retryPlan()">Повторить</button></div>`;
+}
+function retryPlan(){
+  if (planSrc && !planSrc.startsWith('data:')) planSrc = planSrc.split('?')[0] + '?r=' + Date.now();
+  render();
 }
 recolorPng(PSK_LOGO, '#E30613').then(u => { $('c-psk-red').src = u; });
 initProjects();
