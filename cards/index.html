@@ -113,6 +113,19 @@ body{font-family:Inter,-apple-system,system-ui,sans-serif;background:var(--bg);c
   .sb{width:100%;min-width:auto;max-height:50vh}
   .pv{min-height:50vh}
 }
+
+/* формат 1080×607 (16:9): планировка в центре, статистика и ПСК-логотип в правой колонке */
+.card.wide{height:607px}
+.card.wide .left{width:400px;height:607px;padding:50px 40px 0 50px}
+.card.wide .c-logo{margin:0 -40px 0 -50px}
+.card.wide .c-mid{padding-bottom:40px}
+.card.wide .plan{left:400px;top:0;width:400px;height:607px;padding:40px}
+.card.wide .bot{left:800px;top:0;width:280px;height:607px;display:flex;flex-direction:column;border-top:none;border-left:1px solid #e6e6e8}
+.card.wide .bot>div{flex:1;padding:10px 20px}
+.card.wide .bot>div+div{border-left:none;border-top:1px solid #e6e6e8}
+.card.wide .bot>div.brand{flex:0 0 120px;border-top:1px solid #e6e6e8;padding:0 30px}
+.card.wide .brand img{width:200px}
+.fmt-sel{font:inherit;font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid #d0d0d5;background:#fff;color:#333;margin-right:8px}
 </style>
 
 <div class="app">
@@ -183,7 +196,8 @@ body{font-family:Inter,-apple-system,system-ui,sans-serif;background:var(--bg);c
       <label class="tg"><input type="checkbox" id="tg-34"> Кроп 3:4</label>
     </div>
 
-    <button class="btn" id="btn-dl">⬇ Скачать PNG 1080×1080</button>
+    <select class="fmt-sel" id="fmt" aria-label="Формат"><option value="sq">1080×1080</option><option value="wide">1080×607 (16:9)</option></select>
+    <button class="btn" id="btn-dl">⬇ Скачать PNG</button>
   </div>
 
   <div class="pv">
@@ -401,6 +415,8 @@ async function svgToPng(url){
   } finally { URL.revokeObjectURL(objUrl); }
 }
 
+$('fmt').addEventListener('change', () => { $('card').classList.toggle('wide', $('fmt').value === 'wide'); fit(); });
+
 // ── Экспорт ──
 $('btn-dl').addEventListener('click', async function(){
   const btn = this; btn.disabled = true; btn.textContent = 'Генерация...';
@@ -422,12 +438,12 @@ $('btn-dl').addEventListener('click', async function(){
         planImg.src = await svgToPng(prevPlan);
         await planImg.decode();
       }
-      canvas = await html2canvas($('card'), { scale:1, useCORS:true, allowTaint:true, backgroundColor:'#FFFFFF', width:1080, height:1080, logging:false });
+      canvas = await html2canvas($('card'), { scale:1, useCORS:true, allowTaint:true, backgroundColor:'#FFFFFF', width:1080, height: $('card').classList.contains('wide') ? 607 : 1080, logging:false });
     } finally { cw.style.transform = prevT; if (planImg) planImg.src = prevPlan; if (logoImg) logoImg.src = prevLogo; }
     const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
     if (!blob) { toast('Ошибка генерации'); return; }
     const n = ($('inp-name').value || 'card').trim().replace(/\s+/g,'_');
-    const fname = n + '_' + $('inp-rt').value.replace(/[^а-яА-Яa-zA-Z0-9]/g,'') + '_' + $('inp-ar').value.replace(',', '.') + 'm2.png';
+    const fname = n + '_' + $('inp-rt').value.replace(/[^а-яА-Яa-zA-Z0-9]/g,'') + '_' + $('inp-ar').value.replace(',', '.') + 'm2' + ($('card').classList.contains('wide') ? '_16x9' : '') + '.png';
     if (dl){
       try { await dl.save({ filename: fname, data: blob }); toast('Карточка сохранена'); }
       catch(e){ toast(e && e.code === 'declined' ? 'Отменено' : 'Ошибка: ' + (e && e.message || e && e.code)); }
@@ -445,8 +461,9 @@ $('btn-dl').addEventListener('click', async function(){
 // ── Масштаб предпросмотра ──
 function fit(){
   const p = document.querySelector('.pv');
-  const s = Math.min((p.clientWidth - 32) / 1080, (p.clientHeight - 32) / 1080, 0.6);
-  const w = $('cw'); w.style.transform = `scale(${s})`; w.style.width='1080px'; w.style.height='1080px';
+  const h = $('card').classList.contains('wide') ? 607 : 1080;
+  const s = Math.min((p.clientWidth - 32) / 1080, (p.clientHeight - 32) / h, 0.6);
+  const w = $('cw'); w.style.transform = `scale(${s})`; w.style.width='1080px'; w.style.height=h+'px';
 }
 
 // ── Старт ──
