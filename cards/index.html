@@ -322,8 +322,8 @@ function onLot(id){
   const feats = [];
   if (l.finishing) feats.push(l.finishing);
   feats.push(...(l.tags || []));
-  $('inp-ft').value = feats.join('\n');
-  $('inp-term').value = 'Передача ключей' + (l.cy ? '\n' + (l.cq ? ROMAN[l.cq-1] + ' кв. ' : '') + l.cy + ' г.' : '');
+  if (!textEdited.ft) $('inp-ft').value = feats.join('\n');
+  if (!textEdited.term) $('inp-term').value = 'Передача ключей' + (l.cy ? '\n' + (l.cq ? ROMAN[l.cq-1] + ' кв. ' : '') + l.cy + ' г.' : '');
   planSrc = l.plan || '';  // план из фида по умолчанию, свою загрузку можно заменить
   $('plan-link').innerHTML = l.plan ? `<a href="${l.plan}" target="_blank" rel="noopener">Открыть план из фида ↗</a>` : '';
   $('up-plan').classList.remove('ok'); $('up-plan').textContent = '📎 Загрузить свою планировку';
@@ -387,6 +387,7 @@ $('f-plan').addEventListener('change', e => {
 
 // ── Живое редактирование ──
 ['inp-name','inp-rt','inp-ar','inp-price','inp-fl','inp-ch','inp-ft','inp-term'].forEach(id => $(id).addEventListener('input', () => {
+  if (id === 'inp-ft' || id === 'inp-term') { textEdited[id === 'inp-ft' ? 'ft' : 'term'] = true; saveTexts(); }
   if (id === 'inp-ch') { ceilingEdited = true; $('warn-ch').classList.toggle('on', !$('inp-ch').value.trim()); }
   render();
 }));
@@ -468,6 +469,16 @@ function fit(){
 
 // ── Старт ──
 // ── Логотипы: обрезаем прозрачные поля, чтобы все логотипы выглядели одного размера ──
+// описание и сроки: после ручной правки не перезаписываем их данными лота и помним между перезагрузками
+let textEdited = { ft: false, term: false };
+function saveTexts(){
+  try { localStorage.setItem('psk-card-texts', JSON.stringify({ ft: $('inp-ft').value, term: $('inp-term').value })); } catch (e) {}
+}
+try {
+  const saved = JSON.parse(localStorage.getItem('psk-card-texts') || 'null');
+  if (saved && typeof saved.ft === 'string') { $('inp-ft').value = saved.ft; textEdited.ft = true; }
+  if (saved && typeof saved.term === 'string') { $('inp-term').value = saved.term; textEdited.term = true; }
+} catch (e) {}
 let logoUploaded = false;   // true, если логотип загружен вручную (тогда API-логотип не подменяем)
 let logoPlate = false;      // логотип на белой подложке (цветной логотип проекта)
 const logoCache = {};
