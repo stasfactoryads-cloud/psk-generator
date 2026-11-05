@@ -413,14 +413,17 @@ $('btn-dl').addEventListener('click', async function(){
     const cw = $('cw'); const prevT = cw.style.transform; cw.style.transform = 'none';
     // html2canvas плохо рисует SVG, поэтому на время экспорта подменяем планировку растровым PNG
     const planImg = $('c-plan').querySelector('img'); const prevPlan = planImg ? planImg.src : '';
+    // логотип проекта: html2canvas не применяет CSS-фильтры, поэтому белый логотип перекрашиваем в PNG заранее
+    const logoImg = $('c-logo').querySelector('img'); const prevLogo = logoImg ? logoImg.src : '';
     let canvas;
     try {
+      if (logoImg && !$('c-logo').classList.contains('plate')) { logoImg.src = await recolorPng(prevLogo, '#FFFFFF'); await logoImg.decode().catch(() => {}); }
       if (planImg && /\.svg(\?|$)/i.test(prevPlan)) {
         planImg.src = await svgToPng(prevPlan);
         await planImg.decode();
       }
       canvas = await html2canvas($('card'), { scale:1, useCORS:true, allowTaint:true, backgroundColor:'#FFFFFF', width:1080, height:1080, logging:false });
-    } finally { cw.style.transform = prevT; if (planImg) planImg.src = prevPlan; }
+    } finally { cw.style.transform = prevT; if (planImg) planImg.src = prevPlan; if (logoImg) logoImg.src = prevLogo; }
     const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
     if (!blob) { toast('Ошибка генерации'); return; }
     const n = ($('inp-name').value || 'card').trim().replace(/\s+/g,'_');
